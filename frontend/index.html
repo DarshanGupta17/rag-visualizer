@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RAG Visualizer</title>
+  <meta name="description" content="Understand how Retrieval Augmented Generation works, one step at a time.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230f0f0f'/%3E%3Ccircle cx='10' cy='16' r='3' fill='%233ecf8e'/%3E%3Ccircle cx='22' cy='10' r='3' fill='%23f4f4f5'/%3E%3Ccircle cx='22' cy='22' r='3' fill='%233ecf8e'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <svg width="0" height="0" class="sprite" aria-hidden="true">
+    <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></symbol>
+    <symbol id="i-cut" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.1 15.9M14.5 14.5 20 20M8.1 8.1 12 12"/></symbol>
+    <symbol id="i-vec" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h.01M15 9h.01M9 15h.01M15 15h.01M12 12h.01M2 9h2M2 15h2M20 9h2M20 15h2M9 2v2M15 2v2M9 20v2M15 20v2"/></symbol>
+    <symbol id="i-db" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+    <symbol id="i-results" viewBox="0 0 24 24"><path d="M10 6h11M10 12h11M10 18h11"/><path d="m3 6 1.5 1.5L7 5M3 12l1.5 1.5L7 11M3 18l1.5 1.5L7 17"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  </svg>
+
+  <div class="page">
+    <header class="site-nav">
+      <div class="shell nav-inner">
+        <a class="wordmark" href="#document">
+          <span class="mark-dot" aria-hidden="true"></span>
+          RAG <span class="mark-accent">Visualizer</span>
+        </a>
+        <div class="system" aria-live="polite">
+          <div class="pill" id="model-pill" data-state="pending">
+            <span class="pill-label">Model</span>
+            <span class="pill-value" id="model-status">connecting</span>
+          </div>
+          <div class="pill" id="db-pill" data-state="pending">
+            <span class="pill-label">PostgreSQL</span>
+            <span class="pill-value" id="db-status">connecting</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <section class="hero">
+      <div class="shell hero-grid">
+        <div class="hero-copy">
+          <span class="tag-new">Local pipeline</span>
+          <h1 class="hero-title">Understand how Retrieval Augmented Generation works</h1>
+          <p class="hero-lead">Paste a document, watch it become chunks and vectors, store them in PostgreSQL with pgvector, then search by semantic similarity — entirely on your machine.</p>
+        </div>
+        <div class="hero-mockups" aria-hidden="true">
+          <div class="mock-stack">
+            <div class="mock-pane mock-pane--back">
+              <span class="mock-title">Table editor</span>
+              <div class="mock-row"></div>
+              <div class="mock-row short"></div>
+            </div>
+            <div class="mock-pane mock-pane--mid">
+              <span class="mock-title">SQL</span>
+              <code class="mock-code">SELECT … &lt;=&gt; :query</code>
+            </div>
+            <div class="mock-pane mock-pane--front">
+              <span class="mock-title">Embeddings</span>
+              <div class="mock-vec"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="shell workspace">
+      <nav class="pipeline" aria-label="RAG pipeline">
+        <ol>
+          <li class="stage" data-stage="document" data-status="waiting"><a href="#document"><svg><use href="#i-doc"/></svg><span class="stage-name">Document</span><span class="stage-status">Waiting</span></a></li>
+          <li class="stage" data-stage="chunking" data-status="waiting"><a href="#chunking"><svg><use href="#i-cut"/></svg><span class="stage-name">Chunking</span><span class="stage-status">Waiting</span></a></li>
+          <li class="stage" data-stage="embeddings" data-status="waiting"><a href="#embeddings"><svg><use href="#i-vec"/></svg><span class="stage-name">Embeddings</span><span class="stage-status">Waiting</span></a></li>
+          <li class="stage" data-stage="storage" data-status="waiting"><a href="#storage"><svg><use href="#i-db"/></svg><span class="stage-name">Vector Storage</span><span class="stage-status">Waiting</span></a></li>
+          <li class="stage" data-stage="retrieval" data-status="waiting"><a href="#retrieval"><svg><use href="#i-search"/></svg><span class="stage-name">Retrieval</span><span class="stage-status">Waiting</span></a></li>
+          <li class="stage" data-stage="results" data-status="waiting"><a href="#results"><svg><use href="#i-results"/></svg><span class="stage-name">Results</span><span class="stage-status">Waiting</span></a></li>
+        </ol>
+      </nav>
+
+      <main>
+        <section class="panel" id="document">
+          <header class="panel-head">
+            <span class="step">1</span>
+            <div>
+              <h2>Document</h2>
+              <p>Paste any text. This is the knowledge we want to search later.</p>
+            </div>
+          </header>
+          <div class="doc-grid">
+            <div class="editor">
+              <div class="toolbar">
+                <button class="btn ghost" id="sample-btn" type="button">Load sample document</button>
+                <button class="btn ghost" id="clear-btn" type="button">Clear</button>
+                <span class="counter" id="char-count">0 characters</span>
+              </div>
+              <textarea id="doc-input" spellcheck="false" placeholder="Paste a few paragraphs of text here, or load the sample document."></textarea>
+            </div>
+            <aside class="settings card-inset">
+              <label class="field">
+                <span class="field-row"><span>Chunk size</span><output id="size-out">300 chars</output></span>
+                <input type="range" id="chunk-size" min="100" max="1000" step="10" value="300">
+              </label>
+              <label class="field">
+                <span class="field-row"><span>Chunk overlap</span><output id="overlap-out">50 chars</output></span>
+                <input type="range" id="chunk-overlap" min="0" max="200" step="5" value="50">
+              </label>
+              <p class="hint">Overlap repeats the end of one chunk at the start of the next, so a sentence cut at a boundary still appears whole somewhere.</p>
+              <button class="btn primary wide" id="process-btn" type="button">
+                <span class="btn-text">Process document</span>
+              </button>
+              <p class="hint" id="process-note">Processing replaces whatever is currently stored in the database.</p>
+            </aside>
+          </div>
+        </section>
+
+        <section class="panel" id="chunking">
+          <header class="panel-head">
+            <span class="step">2</span>
+            <div>
+              <h2>Chunking</h2>
+              <p>Why do we chunk documents? Because embedding an entire large document at once makes it harder to retrieve only the relevant information.</p>
+            </div>
+          </header>
+          <div class="empty" id="chunk-empty">Process a document to see how it gets split.</div>
+          <div class="chunk-view" id="chunk-view" hidden>
+            <div class="metrics" id="chunk-metrics"></div>
+            <div class="split">
+              <div class="split-col">
+                <div class="col-head"><h3>Original document</h3><span class="legend"><i class="swatch overlap-swatch"></i>overlap shared by two chunks</span></div>
+                <div class="source" id="source-view"></div>
+              </div>
+              <div class="split-col">
+                <div class="col-head"><h3>Resulting chunks</h3><span class="legend" id="chunk-legend"></span></div>
+                <div class="chunk-list" id="chunk-list"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" id="embeddings">
+          <header class="panel-head">
+            <span class="step">3</span>
+            <div>
+              <h2>Embeddings</h2>
+              <p>An embedding converts text into a list of numbers that represents its semantic meaning. Similar meanings tend to have similar vectors.</p>
+            </div>
+          </header>
+          <div class="empty" id="embed-empty">Embeddings appear once chunks are sent through the model.</div>
+          <div id="embed-view" hidden>
+            <div class="metrics" id="embed-metrics"></div>
+            <div class="flow" id="embed-flow">
+              <div class="flow-node">
+                <span class="flow-label">Text</span>
+                <div class="flow-body text-sample" id="flow-text"></div>
+              </div>
+              <svg class="flow-arrow" aria-hidden="true"><use href="#i-arrow"/></svg>
+              <div class="flow-node model-node">
+                <span class="flow-label">BGE model</span>
+                <div class="flow-body">
+                  <strong id="flow-model"></strong>
+                  <span class="muted">Sentence Transformers on CPU, normalized output</span>
+                </div>
+              </div>
+              <svg class="flow-arrow" aria-hidden="true"><use href="#i-arrow"/></svg>
+              <div class="flow-node">
+                <span class="flow-label">Vector</span>
+                <div class="flow-body mono" id="flow-vector"></div>
+              </div>
+            </div>
+            <p class="hint">Click any chunk, row or point to follow it through the pipeline. Each strip below shows all 384 numbers of one vector as colour: <span class="pos">positive</span> and <span class="neg">negative</span>.</p>
+            <div class="vector-list" id="vector-list"></div>
+          </div>
+        </section>
+
+        <section class="panel" id="storage">
+          <header class="panel-head">
+            <span class="step">4</span>
+            <div>
+              <h2>Vector Storage</h2>
+              <p>PostgreSQL stores the original text alongside its vector so we can retrieve the actual content when a similar question is searched.</p>
+            </div>
+          </header>
+          <div class="metrics" id="db-metrics"></div>
+          <div class="table-wrap">
+            <div class="table-caption">
+              <code>SELECT id, chunk_id, content, embedding FROM chunks;</code>
+              <button class="btn ghost small" id="reset-btn" type="button">Reset database</button>
+            </div>
+            <div class="table-scroll">
+              <table class="db-table">
+                <thead>
+                  <tr>
+                    <th>id</th>
+                    <th>chunk_id</th>
+                    <th class="col-text">content <span class="type">text</span></th>
+                    <th class="col-vec">embedding <span class="type">vector(384)</span></th>
+                  </tr>
+                </thead>
+                <tbody id="db-rows">
+                  <tr class="empty-row"><td colspan="4">The chunks table is empty.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" id="retrieval">
+          <header class="panel-head">
+            <span class="step">5</span>
+            <div>
+              <h2>Retrieval</h2>
+              <p>Ask a question. It is embedded with the same model, then PostgreSQL finds the stored vectors pointing in the most similar direction.</p>
+            </div>
+          </header>
+          <form class="search" id="search-form">
+            <div class="search-input">
+              <svg aria-hidden="true"><use href="#i-search"/></svg>
+              <input type="text" id="query-input" maxlength="1000" placeholder="What is Retrieval Augmented Generation?" autocomplete="off">
+            </div>
+            <label class="field topk">
+              <span class="field-row"><span>Top K</span><output id="topk-out">3</output></span>
+              <input type="range" id="top-k" min="1" max="10" value="3">
+            </label>
+            <button class="btn primary" id="search-btn" type="submit"><span class="btn-text">Search</span></button>
+          </form>
+          <div class="suggestions" id="suggestions"></div>
+          <ol class="search-flow" id="search-flow">
+            <li data-step="question"><span class="sf-name">Question</span><p class="sf-body" id="sf-question">Waiting for a question</p></li>
+            <li data-step="embed"><span class="sf-name">Query embedding</span><p class="sf-body mono" id="sf-embed">Not generated yet</p></li>
+            <li data-step="search"><span class="sf-name">Vector search</span><p class="sf-body" id="sf-search">pgvector cosine distance</p></li>
+            <li data-step="matched"><span class="sf-name">Matched chunks</span><p class="sf-body" id="sf-matched">None yet</p></li>
+          </ol>
+          <details class="sql">
+            <summary>The SQL that runs</summary>
+            <pre class="code-block"><code id="sql-code">SELECT id, chunk_id, content, 1 - (embedding &lt;=&gt; :query_vector) AS similarity
+FROM chunks
+ORDER BY embedding &lt;=&gt; :query_vector
+LIMIT :top_k</code></pre>
+            <p class="hint"><code>&lt;=&gt;</code> is pgvector's cosine distance operator. Distance is <code>1 − similarity</code>, so ordering by smallest distance returns the most similar chunks.</p>
+          </details>
+        </section>
+
+        <section class="panel" id="results">
+          <header class="panel-head">
+            <span class="step">6</span>
+            <div>
+              <h2>Results</h2>
+              <p>A higher cosine similarity means the two vectors point in a closer direction, so the texts are usually closer in meaning.</p>
+            </div>
+          </header>
+          <div class="results-grid">
+            <div class="result-list" id="result-list">
+              <div class="empty">Search results appear here, ranked by similarity.</div>
+            </div>
+            <aside class="explainer card-dark">
+              <h3>How cosine similarity works</h3>
+              <div class="formula">cos(θ) = <span class="frac"><span>A · B</span><span>‖A‖ ‖B‖</span></span></div>
+              <p>It measures the angle between two vectors and ignores their length. 1 means the same direction, 0 means unrelated, negative means opposite.</p>
+              <p>BGE vectors are normalized to length 1, so the score is simply the dot product of the two 384-number lists.</p>
+              <p class="muted">Compare scores against each other rather than reading them as percentages.</p>
+            </aside>
+          </div>
+        </section>
+
+        <section class="panel" id="space">
+          <header class="panel-head">
+            <span class="step alt">+</span>
+            <div>
+              <h2>Vector space map</h2>
+              <p>Each point is one chunk, squashed from 384 dimensions to 2 with PCA. Search always uses the full vectors.</p>
+            </div>
+          </header>
+          <div class="map-wrap">
+            <div class="empty" id="map-empty">The map appears after a document is processed.</div>
+            <svg class="map" id="map" viewBox="0 0 800 440" role="img" aria-label="2D PCA projection of chunk embeddings" hidden></svg>
+            <div class="tooltip" id="tooltip" hidden></div>
+            <p class="hint" id="map-note"></p>
+          </div>
+        </section>
+      </main>
+
+      <footer class="foot">
+        <span>Runs locally: FastAPI · BAAI/bge-small-en-v1.5 · PostgreSQL with pgvector</span>
+      </footer>
+    </div>
+  </div>
+
+  <div class="toasts" id="toasts" aria-live="assertive"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
